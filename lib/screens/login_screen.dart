@@ -112,15 +112,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       if (result['success'] == true && mounted) {
         print('✅ LOGIN: Tokens are now saved in SharedPreferences');
-        
+
         // Invalidate providers to fetch fresh data with new token
         ref.invalidate(currentUserProvider);
         ref.invalidate(chatHistoryProvider);
-        
+
         // Update auth state directly since tokens are already saved
         authStateNotifier.state = true;
         print('🔐 Auth state updated to true');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -129,13 +129,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               duration: Duration(seconds: 2),
             ),
           );
-          
+
           // Small delay to ensure token is ready
           await Future.delayed(const Duration(milliseconds: 100));
-          
+
           if (mounted) {
-            // Use GoRouter to navigate
-            context.go('/chat');
+            // Use GoRouter to navigate to dashboard
+            context.go('/dashboard');
           }
         }
       } else if (mounted) {

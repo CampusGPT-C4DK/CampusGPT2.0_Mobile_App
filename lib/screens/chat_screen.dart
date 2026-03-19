@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_colors.dart';
 import '../config/animations.dart';
-import '../models/chat_models.dart';
 import '../providers/providers.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/chat_input_field.dart';
@@ -60,7 +59,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       ref.read(chatLoadingProvider.notifier).state = true;
-      
+
       // Show loading message
       print('⏳ Sending question to backend...');
 
@@ -73,7 +72,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             .replaceAll('**', '')
             .replaceAll('*', '')
             .replaceAll('• ', '→ ');
-        
+
         // Add bot message with confidence only (no sources)
         chatMessagesNotifier.addBotMessage(
           text: cleanAnswer,
@@ -83,7 +82,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       } else {
         // Show error message if response is null
         chatMessagesNotifier.addBotMessage(
-          text: '⚠️ Unable to get answer. Backend may still be processing your question.\n\nPlease try:\n1. Check your internet connection\n2. Try again in a moment\n3. Ask a simpler question',
+          text:
+              '⚠️ Unable to get answer. Backend may still be processing your question.\n\nPlease try:\n1. Check your internet connection\n2. Try again in a moment\n3. Ask a simpler question',
           sources: [],
           confidence: 0,
         );
@@ -110,137 +110,202 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatMessages = ref.watch(chatMessagesProvider);
     final isLoading = ref.watch(chatLoadingProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: currentUser.when(
-          data: (user) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CampusGPT',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              if (user != null)
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        // Handle back button with proper navigation stack
+        if (!didPop && context.mounted) {
+          context.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bgWhite,
+        appBar: AppBar(
+          title: currentUser.when(
+            data: (user) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Hello, ${user.fullName}',
+                  'CampusGPT Chat',
                   style: Theme.of(
                     context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMedium),
+                  ).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                 ),
-            ],
-          ),
-          loading: () => const Text('Loading...'),
-          error: (err, _) => Text('Error: $err'),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textDark,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).pushNamed('/history');
-            },
-            icon: const Icon(Icons.history),
-            tooltip: 'Chat History',
-          ),
-          PopupMenuButton(
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                child: const Row(
-                  children: [
-                    Icon(Icons.person, size: 20),
-                    SizedBox(width: 12),
-                    Text('Profile'),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.of(context).pushNamed('/profile');
-                },
-              ),
-              PopupMenuItem(
-                child: const Row(
-                  children: [
-                    Icon(Icons.logout, size: 20),
-                    SizedBox(width: 12),
-                    Text('Logout'),
-                  ],
-                ),
-                onTap: () {
-                  ref.read(authStateProvider.notifier).logout();
-                  context.go('/login');
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Chat Messages
-          Expanded(
-            child: chatMessages.isEmpty
-                ? _buildEmptyState(context)
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    itemCount: chatMessages.length,
-                    itemBuilder: (context, index) {
-                      final message = chatMessages[index];
-                      if (message is Map<String, dynamic>) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: ChatBubble(
-                            message: message['text'] ?? '',
-                            isUser: message['isUser'] ?? false,
-                            timestamp: message['timestamp'] ?? DateTime.now(),
-                            sources: (message['isUser'] == false)
-                                ? message['sources'] as List<String>?
-                                : null,
-                            confidence: (message['isUser'] == false)
-                                ? message['confidence'] as double?
-                                : null,
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
+                if (user != null)
+                  Text(
+                    'Hello, ${user.fullName}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMedium,
+                          fontSize: 12,
+                        ),
                   ),
+              ],
+            ),
+            loading: () => const Text('Loading...'),
+            error: (err, stack) {
+              print('❌ USER ERROR: $err');
+              print('STACK: $stack');
+              return const Text('Chat');
+            },
           ),
-          // Loading indicator
-          if (isLoading)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.textDark,
+          actions: [
+            IconButton(
+              onPressed: () {
+                if (context.mounted) {
+                  Future.microtask(() {
+                    if (context.mounted && context.canPop()) {
+                      context.push('/history');
+                    }
+                  });
+                }
+              },
+              icon: const Icon(Icons.history),
+              tooltip: 'Chat History',
+            ),
+            PopupMenuButton(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  child: const Row(
+                    children: [
+                      Icon(Icons.home, size: 20),
+                      SizedBox(width: 12),
+                      Text('Dashboard'),
+                    ],
+                  ),
+                  onTap: () {
+                    if (context.mounted && context.canPop()) {
+                      Future.microtask(() {
+                        if (context.mounted) {
+                          context.pop();
+                        }
+                      });
+                    }
+                  },
+                ),
+                PopupMenuItem(
+                  child: const Row(
+                    children: [
+                      Icon(Icons.person, size: 20),
+                      SizedBox(width: 12),
+                      Text('Profile'),
+                    ],
+                  ),
+                  onTap: () {
+                    if (context.mounted) {
+                      Future.microtask(() {
+                        if (context.mounted) {
+                          context.push('/profile');
+                        }
+                      });
+                    }
+                  },
+                ),
+                PopupMenuItem(
+                  child: const Row(
+                    children: [
+                      Icon(Icons.logout, size: 20),
+                      SizedBox(width: 12),
+                      Text('Logout'),
+                    ],
+                  ),
+                  onTap: () {
+                    if (context.mounted) {
+                      Future.microtask(() async {
+                        try {
+                          await ref.read(authStateProvider.notifier).logout();
+                          if (context.mounted) {
+                            await Future.delayed(
+                                const Duration(milliseconds: 200));
+                            if (context.mounted) {
+                              context.go('/login');
+                            }
+                          }
+                        } catch (e) {
+                          print('❌ Logout error: $e');
+                        }
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Chat Messages
+            Expanded(
+              child: chatMessages.isEmpty
+                  ? _buildEmptyState(context)
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: chatMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = chatMessages[index];
+                        if (message is Map<String, dynamic>) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: AppSpacing.md),
+                            child: ChatBubble(
+                              message: message['text'] ?? '',
+                              isUser: message['isUser'] ?? false,
+                              timestamp: message['timestamp'] ?? DateTime.now(),
+                              sources: (message['isUser'] == false)
+                                  ? message['sources'] as List<String>?
+                                  : null,
+                              confidence: (message['isUser'] == false)
+                                  ? message['confidence'] as double?
+                                  : null,
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+            ),
+            // Loading indicator
+            if (isLoading)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    'CampusGPT is thinking...',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textMedium,
+                    const SizedBox(width: AppSpacing.md),
+                    Text(
+                      'CampusGPT is thinking...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textMedium,
+                          ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            // Input Field
+            ChatInputField(
+              controller: _messageController,
+              onSendPressed: _handleSendMessage,
+              isLoading: isLoading,
             ),
-          // Input Field
-          ChatInputField(
-            controller: _messageController,
-            onSendPressed: _handleSendMessage,
-            isLoading: isLoading,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

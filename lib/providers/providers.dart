@@ -7,7 +7,8 @@ import '../models/user_model.dart';
 
 // SharedPreferences Provider - Now synchronous, must be overridden in main
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError('sharedPreferencesProvider must be overridden in main()');
+  throw UnimplementedError(
+      'sharedPreferencesProvider must be overridden in main()');
 });
 
 // API Client Provider
@@ -33,6 +34,21 @@ final chatServiceProvider = Provider<ChatService>((ref) {
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, bool>((ref) {
   final authService = ref.watch(authServiceProvider);
   return AuthStateNotifier(authService, ref);
+});
+
+// Auth initialization provider - ensures auth is checked on startup
+final authInitializationProvider = FutureProvider<bool>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  final isLoggedIn = authService.isLoggedIn();
+
+  // Update the auth state provider through its notifier
+  try {
+    ref.read(authStateProvider.notifier).setAuthState(isLoggedIn);
+  } catch (e) {
+    print('Error updating auth state: $e');
+  }
+
+  return isLoggedIn;
 });
 
 // Current User Provider - Family allows refresh
@@ -65,17 +81,7 @@ class AuthStateNotifier extends StateNotifier<bool> {
   final AuthService _authService;
   final Ref _ref;
 
-  AuthStateNotifier(this._authService, this._ref) : super(false) {
-    _initializeAuthState();
-  }
-
-  Future<void> _initializeAuthState() async {
-    // Check if user has saved tokens (persistent login)
-    final isLoggedIn = _authService.isLoggedIn();
-    print(
-        '🔐 Initializing auth state: ${isLoggedIn ? 'USER LOGGED IN ✅' : 'USER NOT LOGGED IN ❌'}');
-    state = isLoggedIn;
-  }
+  AuthStateNotifier(this._authService, this._ref) : super(false);
 
   Future<bool> login(String email, String password) async {
     print('🔐 Attempting login for: $email');
@@ -115,16 +121,26 @@ class AuthStateNotifier extends StateNotifier<bool> {
 
   Future<void> logout() async {
     print('🔐 User logging out...');
-    await _authService.logout();
-    state = false;
+    try {
+      await _authService.logout();
+      state = false;
 
-    // Clear all user-related data
-    _ref.invalidate(currentUserProvider);
-    _ref.invalidate(chatMessagesProvider);
-    _ref.invalidate(chatHistoryProvider);
-    _ref.read(chatMessagesProvider.notifier).clearMessages();
+      // Clear all user-related data
+      _ref.invalidate(currentUserProvider);
+      _ref.invalidate(chatMessagesProvider);
+      _ref.invalidate(chatHistoryProvider);
+      _ref.read(chatMessagesProvider.notifier).clearMessages();
 
-    print('🔐 User logged out ✅ - All data cleared');
+      print('🔐 User logged out ✅ - All data cleared');
+    } catch (e) {
+      print('❌ Error during logout: $e');
+      rethrow;
+    }
+  }
+
+  void setAuthState(bool value) {
+    print('🔐 Setting auth state to: $value');
+    state = value;
   }
 }
 

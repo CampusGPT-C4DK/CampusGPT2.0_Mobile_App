@@ -11,13 +11,16 @@ class APIConfig {
   // static const String baseURL = 'http://localhost:8000/api';
 
   // For Physical Device on same network - replace with your machine IP
-  // static const String baseURL = 'http://192.168.x.x:8000/api'; // Set your actual IP
-  static const String baseURL = 'http://10.128.46.62:8000/api'; // Example IP
+  // Find your IPv4 address using: ipconfig (in PowerShell)
+  // Example: http://192.168.1.100:8000/api
+  // static const String baseURL = 'http://192.168.1.x:8000/api';
 
   // To find your machine IP on Windows:
   // - Open PowerShell and run: ipconfig
   // - Look for "IPv4 Address" on your WiFi adapter
   // - Use that IP address above (e.g., 192.168.1.100)
+
+  static const String baseURL = 'http://10.255.176.62:8000/api';
 
   // ============================================================================
   // CONNECTION SETTINGS

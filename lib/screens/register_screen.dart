@@ -139,7 +139,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             duration: Duration(seconds: 2),
           ),
         );
-        context.go('/chat');
+        context.go('/dashboard');
       } else if (mounted) {
         _showRegistrationErrorDialog();
       }

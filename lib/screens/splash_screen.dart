@@ -53,16 +53,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _checkBackendAndNavigate() async {
     if (!mounted) return;
 
-    // Check if backend is available (with timeout)
     try {
+      // Check backend availability
       print('🔍 Checking backend availability...');
       final healthService = BackendHealthService();
-      final isHealthy = await Future<bool>.value(false)
+      final isHealthy = await healthService
+          .isBackendHealthy()
           .timeout(
             const Duration(seconds: 3),
             onTimeout: () => false,
           )
-          .then((_) => healthService.isBackendHealthy())
           .catchError((_) => false);
 
       if (mounted) {
@@ -71,7 +71,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         });
 
         if (!isHealthy) {
-          print('⚠️  Backend not available, but continuing to login');
+          print('⚠️ Backend not available, but continuing to login');
         }
       }
     } catch (e) {
@@ -83,23 +83,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       }
     }
 
-    // Navigate based on auth state
+    // Navigate based on persistent login check
     if (!mounted) return;
 
-    final authState = ref.read(authStateProvider);
+    try {
+      final authService = ref.read(authServiceProvider);
+      final isLoggedIn = authService.isLoggedIn();
 
-    if (authState && _backendAvailable) {
-      // User is logged in and backend is available
+      print(
+          '🔐 SPLASH: Persistent login check = ${isLoggedIn ? 'LOGGED IN ✅' : 'LOGGED OUT ❌'}');
+
       if (mounted) {
-        context.go('/chat');
+        // Update auth state provider
+        ref.read(authStateProvider.notifier).setAuthState(isLoggedIn);
+
+        if (isLoggedIn && _backendAvailable) {
+          // User is logged in and backend is available - go to dashboard
+          print('✅ SPLASH: Going to dashboard (user logged in + backend ok)');
+          context.go('/dashboard');
+        } else if (isLoggedIn && !_backendAvailable) {
+          // User is logged in but backend not available - show warning
+          print('⚠️ SPLASH: Backend unavailable but user logged in');
+          if (mounted) {
+            _showBackendWarningDialog();
+          }
+        } else {
+          // User not logged in - go to login screen
+          print('🔐 SPLASH: Going to login screen (user not logged in)');
+          context.go('/login');
+        }
       }
-    } else if (authState && !_backendAvailable) {
-      // User is logged in but backend not available
-      if (mounted) {
-        _showBackendWarningDialog();
-      }
-    } else {
-      // User is not logged in, go to login screen
+    } catch (e) {
+      print('❌ SPLASH: Error during navigation: $e');
       if (mounted) {
         context.go('/login');
       }
@@ -167,7 +182,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             onPressed: () {
               Navigator.pop(context);
               if (mounted) {
-                context.go('/chat');
+                context.go('/dashboard');
               }
             },
             child: const Text('Continue Anyway'),
