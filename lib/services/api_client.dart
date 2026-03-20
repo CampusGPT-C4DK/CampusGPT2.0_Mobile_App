@@ -10,8 +10,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: APIConfig.baseURL,
-        connectTimeout: const Duration(seconds: 60), // 60s for initial connection
-        receiveTimeout: const Duration(seconds: 180), // 180s (3 min) for long LLM processing
+        connectTimeout:
+            const Duration(seconds: 60), // 60s for initial connection
+        receiveTimeout: const Duration(
+            seconds: 180), // 180s (3 min) for long LLM processing
         sendTimeout: const Duration(seconds: 60), // 60s to send request
         validateStatus: (status) => true, // Don't throw on any status
       ),
@@ -56,7 +58,8 @@ class ApiClient {
           return handler.next(error);
         },
         onResponse: (response, handler) {
-          print('✅ Response: ${response.statusCode} - ${response.requestOptions.path}');
+          print(
+              '✅ Response: ${response.statusCode} - ${response.requestOptions.path}');
           return handler.next(response);
         },
       ),
@@ -73,7 +76,7 @@ class ApiClient {
         '/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final newAccessToken = response.data?['access_token'];
         if (newAccessToken != null) {
@@ -89,28 +92,34 @@ class ApiClient {
     }
   }
 
-  Future<Response> post(String path, {required Map<String, dynamic> data}) async {
+  Future<Response> post(String path, {required dynamic data}) async {
     try {
-      print('📤 POST $path with data: ${data.keys.join(", ")}');
+      final dataLabel =
+          data is Map ? (data as Map).keys.join(", ") : 'FormData';
+      print('📤 POST $path with data: $dataLabel');
       print('⏱️ Timeout: Connect=60s, Send=60s, Receive=180s');
-      
+
       final stopwatch = Stopwatch()..start();
       final response = await _dio.post(path, data: data);
       stopwatch.stop();
-      
-      print('✅ POST Response: ${response.statusCode} (took ${stopwatch.elapsedMilliseconds}ms)');
+
+      print(
+          '✅ POST Response: ${response.statusCode} (took ${stopwatch.elapsedMilliseconds}ms)');
       return response;
     } on DioException catch (e) {
       print('❌ POST DioException: ${e.message}');
       if (e.type == DioExceptionType.receiveTimeout) {
-        print('⏱️ RECEIVE TIMEOUT: Backend still processing. This is normal for LLM responses.');
-        print('⏱️ Max receive timeout is 180 seconds. Consider optimizing backend performance.');
+        print(
+            '⏱️ RECEIVE TIMEOUT: Backend still processing. This is normal for LLM responses.');
+        print(
+            '⏱️ Max receive timeout is 180 seconds. Consider optimizing backend performance.');
       }
       return _handleDioError(e);
     }
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
     try {
       final response = await _dio.get(path, queryParameters: queryParameters);
       return response;

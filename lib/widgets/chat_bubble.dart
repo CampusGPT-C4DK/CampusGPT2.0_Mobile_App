@@ -193,33 +193,4 @@ class _ChatBubbleState extends State<ChatBubble>
       ),
     );
   }
-
-  Widget _buildSources(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '📚 Sources:',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textMedium,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        ...widget.sources!.map(
-          (source) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Text(
-              '• $source',
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textMedium),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

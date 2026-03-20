@@ -28,7 +28,7 @@ class ChatService {
           final result = ChatResponse.fromJson(response.data);
           print('✅ CHAT: Question asked successfully');
           return result;
-        } catch (e, st) {
+        } catch (e) {
           print('❌ CHAT: Error parsing response: $e');
           print('❌ Response data: ${response.data}');
 

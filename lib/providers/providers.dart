@@ -3,7 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
+import '../services/career_guidance_service.dart';
 import '../models/user_model.dart';
+import '../models/career_guidance_model.dart';
 
 // SharedPreferences Provider - Now synchronous, must be overridden in main
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -28,6 +30,11 @@ final authServiceProvider = Provider<AuthService>((ref) {
 final chatServiceProvider = Provider<ChatService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return ChatService(apiClient: apiClient);
+});
+
+// Career Guidance Service Provider
+final careerGuidanceServiceProvider = Provider<CareerGuidanceService>((ref) {
+  return CareerGuidanceService();
 });
 
 // Auth State Provider with Persistent Login Check
@@ -76,6 +83,23 @@ final chatHistoryProvider = FutureProvider<List>((ref) async {
   final chatService = ref.watch(chatServiceProvider);
   return chatService.getChatHistory();
 });
+
+// Career Guidance Response Provider
+final careerGuidanceProvider =
+    FutureProvider.family<CareerGuidanceResponse, QAResponses>(
+        (ref, qaResponses) async {
+  final service = ref.watch(careerGuidanceServiceProvider);
+  return service.generateCareerGuidance(qaResponses: qaResponses);
+});
+
+// Career Guidance Loading Provider
+final careerGuidanceLoadingProvider = StateProvider<bool>((ref) => false);
+
+// Career Guidance Result Provider
+final careerGuidanceResultProvider = StateNotifierProvider<
+    CareerGuidanceResultNotifier, CareerGuidanceResponse?>(
+  (ref) => CareerGuidanceResultNotifier(),
+);
 
 class AuthStateNotifier extends StateNotifier<bool> {
   final AuthService _authService;
@@ -173,5 +197,18 @@ class ChatMessagesNotifier extends StateNotifier<List<dynamic>> {
 
   void clearMessages() {
     state = [];
+  }
+}
+
+class CareerGuidanceResultNotifier
+    extends StateNotifier<CareerGuidanceResponse?> {
+  CareerGuidanceResultNotifier() : super(null);
+
+  void setResult(CareerGuidanceResponse? response) {
+    state = response;
+  }
+
+  void clearResult() {
+    state = null;
   }
 }

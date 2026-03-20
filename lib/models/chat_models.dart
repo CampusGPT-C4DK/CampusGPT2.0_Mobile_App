@@ -16,20 +16,21 @@ class ChatResponse {
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
     print('🔍 PARSING ChatResponse from: ${json.keys.toList()}');
     print('🔍 Full response: $json');
-    
+
     // Extract answer
     final answer = json['answer'] ?? '';
     print('✅ Answer extracted: ${answer.substring(0, 50)}...');
-    
+
     // Extract sources - handle multiple possible formats
     List<Source> sources = [];
-    
+
     // Try 'sources' field first
     if (json['sources'] != null && json['sources'] is List) {
       sources = (json['sources'] as List)
           .map((s) => Source.fromJson(s as Map<String, dynamic>))
           .toList();
-      print('✅ Sources extracted from sources field: ${sources.length} sources');
+      print(
+          '✅ Sources extracted from sources field: ${sources.length} sources');
     }
     // Try 'retrieved_chunks' field (backend format)
     else if (json['retrieved_chunks'] != null) {
@@ -37,14 +38,15 @@ class ChatResponse {
       if (chunks is String) {
         try {
           // Parse JSON string
-          chunks = (chunks as String).replaceAll("'", '"');
-          print('🔍 Retrieved chunks as string: ${chunks.substring(0, 100)}...');
+          chunks = chunks.replaceAll("'", '"');
+          print(
+              '🔍 Retrieved chunks as string: ${chunks.substring(0, 100)}...');
         } catch (e) {
           print('⚠️ Could not parse retrieved_chunks: $e');
         }
       }
       if (chunks is List) {
-        sources = (chunks as List)
+        sources = chunks
             .map((s) {
               if (s is Map<String, dynamic>) {
                 return Source.fromJson(s);
@@ -53,16 +55,18 @@ class ChatResponse {
             })
             .whereType<Source>()
             .toList();
-        print('✅ Sources extracted from retrieved_chunks: ${sources.length} sources');
+        print(
+            '✅ Sources extracted from retrieved_chunks: ${sources.length} sources');
       }
     } else {
       print('⚠️ No sources found in response');
     }
-    
+
     // Extract confidence score
-    final confidenceScore = (json['confidence_score'] as num?)?.toDouble() ?? 0.0;
+    final confidenceScore =
+        (json['confidence_score'] as num?)?.toDouble() ?? 0.0;
     print('✅ Confidence score: $confidenceScore');
-    
+
     return ChatResponse(
       answer: answer,
       sources: sources,
@@ -88,28 +92,24 @@ class Source {
 
   factory Source.fromJson(Map<String, dynamic> json) {
     print('🔍 Parsing Source: ${json.keys.toList()}');
-    
+
     // Handle different field names from backend
-    final id = json['id'] ?? 
-               json['chunk_id'] ?? 
-               json['document_id'] ?? 
-               '';
-    
-    final documentName = json['document_name'] ?? 
-                        json['title'] ?? 
-                        'Document';
-    
-    final chunkContent = json['chunk_content'] ?? 
-                        json['content'] ?? 
-                        json['content_preview'] ??
-                        '';
-    
-    final relevanceScore = (json['relevance_score'] as num? ?? 
-                           json['importance_score'] as num? ?? 
-                           0).toDouble();
-    
+    final id = json['id'] ?? json['chunk_id'] ?? json['document_id'] ?? '';
+
+    final documentName = json['document_name'] ?? json['title'] ?? 'Document';
+
+    final chunkContent = json['chunk_content'] ??
+        json['content'] ??
+        json['content_preview'] ??
+        '';
+
+    final relevanceScore = (json['relevance_score'] as num? ??
+            json['importance_score'] as num? ??
+            0)
+        .toDouble();
+
     print('✅ Source parsed: id=$id, name=$documentName, score=$relevanceScore');
-    
+
     return Source(
       id: id,
       documentName: documentName,
