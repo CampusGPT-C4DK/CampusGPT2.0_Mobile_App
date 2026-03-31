@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,110 +15,90 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
+  
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   bool _backendAvailable = true;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5, curve: Curves.easeIn)),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
 
     _controller.forward();
 
-    // Check backend and navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), _checkBackendAndNavigate);
+    // Check backend and navigate after 3.5 seconds
+    Future.delayed(const Duration(milliseconds: 3500), _checkBackendAndNavigate);
   }
 
   Future<void> _checkBackendAndNavigate() async {
     if (!mounted) return;
 
     try {
-      // Check backend availability
-      print('🔍 Checking backend availability...');
       final healthService = BackendHealthService();
       final isHealthy = await healthService
           .isBackendHealthy()
-          .timeout(
-            const Duration(seconds: 3),
-            onTimeout: () => false,
-          )
+          .timeout(const Duration(seconds: 3), onTimeout: () => false)
           .catchError((_) => false);
 
       if (mounted) {
         setState(() {
           _backendAvailable = isHealthy;
         });
-
-        if (!isHealthy) {
-          print('⚠️ Backend not available, but continuing to login');
-        }
       }
     } catch (e) {
-      print('❌ Error checking backend: $e');
-      if (mounted) {
-        setState(() {
-          _backendAvailable = false;
-        });
-      }
+      if (mounted) setState(() => _backendAvailable = false);
     }
 
-    // Navigate based on persistent login check
     if (!mounted) return;
 
     try {
       final authService = ref.read(authServiceProvider);
       final isLoggedIn = authService.isLoggedIn();
 
-      print(
-          '🔐 SPLASH: Persistent login check = ${isLoggedIn ? 'LOGGED IN ✅' : 'LOGGED OUT ❌'}');
-
       if (mounted) {
-        // Update auth state provider
         ref.read(authStateProvider.notifier).setAuthState(isLoggedIn);
 
         if (isLoggedIn && _backendAvailable) {
-          // User is logged in and backend is available - go to dashboard
-          print('✅ SPLASH: Going to dashboard (user logged in + backend ok)');
-          context.go('/dashboard');
+           context.go('/dashboard');
         } else if (isLoggedIn && !_backendAvailable) {
-          // User is logged in but backend not available - show warning
-          print('⚠️ SPLASH: Backend unavailable but user logged in');
-          if (mounted) {
-            _showBackendWarningDialog();
-          }
+          _showBackendWarningDialog();
         } else {
-          // User not logged in - go to login screen
-          print('🔐 SPLASH: Going to login screen (user not logged in)');
-          context.go('/login');
+           context.go('/login');
         }
       }
     } catch (e) {
-      print('❌ SPLASH: Error during navigation: $e');
-      if (mounted) {
-        context.go('/login');
-      }
+       if (mounted) context.go('/login');
     }
   }
 
@@ -126,75 +107,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('⚠️ Backend Server Warning'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Cannot connect to backend server',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Backend URL: ${APIConfig.baseURL}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  border: Border.all(color: Colors.orange),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '💡 Please make sure:',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '1. Backend server is running',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '2. Check backend logs for errors',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '3. Verify network connectivity',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('⚠️ Backend Offline', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
+        content: Text('Cannot connect to backend server.\n\nBackend URL: ${APIConfig.baseURL}', style: const TextStyle(color: AppColors.textMedium)),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              if (mounted) {
-                context.go('/dashboard');
-              }
+               Navigator.pop(context);
+               if (mounted) context.go('/dashboard');
             },
-            child: const Text('Continue Anyway'),
+            child: const Text('Continue Anyway', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              if (mounted) {
-                context.go('/login');
-              }
+               Navigator.pop(context);
+               if (mounted) context.go('/login');
             },
-            child: const Text('Go to Login'),
+            child: const Text('Login', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -204,83 +134,117 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: AppColors.gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      backgroundColor: Colors.white,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Elegant animated soft light background
+          Positioned(
+             top: -100,
+             right: -50,
+             child: Container(
+               width: 400,
+               height: 400,
+               decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withOpacity(0.08),
+                  boxShadow: [
+                     BoxShadow(color: AppColors.primaryLight.withOpacity(0.2), blurRadius: 100, spreadRadius: 50)
+                  ]
+               ),
+             ),
           ),
-        ),
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Animated Logo
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
+          Positioned(
+             bottom: -150,
+             left: -100,
+             child: Container(
+               width: 500,
+               height: 500,
+               decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryDark.withOpacity(0.05),
+                  boxShadow: [
+                     BoxShadow(color: AppColors.primary.withOpacity(0.1), blurRadius: 120, spreadRadius: 60)
+                  ]
+               ),
+             ),
+          ),
+          
+          BackdropFilter(
+             filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+             child: Container(color: Colors.transparent),
+          ),
+          
+          Center(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ScaleTransition(
+                        scale: _pulseAnimation,
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(color: AppColors.shadowColor, blurRadius: 40, spreadRadius: 10, offset: const Offset(0, 10)),
+                              BoxShadow(color: AppColors.primary.withOpacity(0.1), blurRadius: 20, spreadRadius: 5),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.school_rounded,
-                          size: 70,
-                          color: Colors.white,
+                          child: const Center(
+                            child: Icon(Icons.school_rounded, size: 60, color: AppColors.primaryDark),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
-                    // App Name
-                    ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Colors.white, Color(0xFFE0E7FF)],
-                      ).createShader(bounds),
-                      child: Text(
+                      const SizedBox(height: 32),
+                      
+                      Text(
                         'CampusGPT',
-                        style:
-                            Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 48,
-                                ),
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 42,
+                              letterSpacing: -1.0,
+                            ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Tagline
-                    Text(
-                      'Your AI Campus Guide',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 16,
-                          ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        decoration: BoxDecoration(
+                           color: AppColors.primary.withOpacity(0.1),
+                           borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Text(
+                          'Your Academic Assistant',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: AppColors.primaryDark,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

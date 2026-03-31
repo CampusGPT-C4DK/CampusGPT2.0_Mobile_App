@@ -29,7 +29,10 @@ class ApiClient {
             options.headers['Authorization'] = 'Bearer $token';
             print('✅ Authorization header set');
           } else {
-            print('❌ NO TOKEN FOUND - Request will fail with 403');
+            print('⚠️  WARNING: NO TOKEN FOUND');
+            print('   → User must log in first');
+            print('   → Endpoint: ${options.method} ${options.path}');
+            print('   → Response will be 401 Unauthorized');
           }
           print('📡 Request: ${options.method} ${options.path}');
           print('📡 Headers: ${options.headers}');
@@ -38,21 +41,32 @@ class ApiClient {
         onError: (error, handler) async {
           print('❌ DioError: ${error.response?.statusCode} - ${error.message}');
 
+          // Handle 401 - Token invalid/expired
           if (error.response?.statusCode == 401) {
-            print('🔐 Token expired, attempting refresh...');
-            try {
-              await _refreshToken();
-              return handler.resolve(
-                await _dio.request(
-                  error.requestOptions.path,
-                  options: Options(method: error.requestOptions.method),
-                  data: error.requestOptions.data,
-                  queryParameters: error.requestOptions.queryParameters,
-                ),
-              );
-            } catch (e) {
-              print('❌ Token refresh failed: $e');
-              return handler.next(error);
+            print('🔐 Got 401 Unauthorized');
+            final hasRefreshToken =
+                _prefs.getString(APIConfig.refreshTokenKey) != null;
+
+            if (hasRefreshToken) {
+              print('🔐 Refresh token exists, attempting refresh...');
+              try {
+                await _refreshToken();
+                return handler.resolve(
+                  await _dio.request(
+                    error.requestOptions.path,
+                    options: Options(method: error.requestOptions.method),
+                    data: error.requestOptions.data,
+                    queryParameters: error.requestOptions.queryParameters,
+                  ),
+                );
+              } catch (e) {
+                print('❌ Token refresh failed: $e');
+                print('🔐 User needs to login again');
+                return handler.next(error);
+              }
+            } else {
+              print('❌ No refresh token available');
+              print('🔐 User must log in');
             }
           }
           return handler.next(error);

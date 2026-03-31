@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -48,6 +49,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
+    // ✅ CHECK: Require user to be logged in
+    final authService = ref.read(authServiceProvider);
+    if (!authService.isLoggedIn()) {
+      print('🔐 User not logged in, redirecting to login');
+      _messageController.clear(); // Clear the input field
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '🔐 Please log in first to ask questions',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'LOGIN',
+            textColor: Colors.white,
+            onPressed: () {
+              context.go('/login');
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     _messageController.clear();
 
     final chatMessagesNotifier = ref.read(chatMessagesProvider.notifier);
@@ -59,31 +87,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       ref.read(chatLoadingProvider.notifier).state = true;
-
-      // Show loading message
-      print('⏳ Sending question to backend...');
-
-      // Ask the question
       final response = await chatService.askQuestion(message);
 
       if (response != null) {
-        // Clean markdown formatting from answer (remove stars)
         final cleanAnswer = response.answer
             .replaceAll('**', '')
             .replaceAll('*', '')
             .replaceAll('• ', '→ ');
 
-        // Add bot message with confidence only (no sources)
         chatMessagesNotifier.addBotMessage(
           text: cleanAnswer,
           sources: [],
           confidence: response.confidenceScore,
         );
       } else {
-        // Show error message if response is null
         chatMessagesNotifier.addBotMessage(
           text:
-              '⚠️ Unable to get answer. Backend may still be processing your question.\n\nPlease try:\n1. Check your internet connection\n2. Try again in a moment\n3. Ask a simpler question',
+              '⚠️ Unable to get answer. Backend may still be processing your question.',
           sources: [],
           confidence: 0,
         );
@@ -91,12 +111,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       _scrollToBottom();
     } catch (e) {
-      print('❌ SEND MESSAGE ERROR: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content:
+              Text('Error: $e', style: const TextStyle(color: Colors.white)),
           backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {
@@ -113,134 +133,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {
-        // Handle back button with proper navigation stack
         if (!didPop && context.mounted) {
           context.pop();
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.bgWhite,
+        backgroundColor: AppColors.bgDark, // Light grey/white
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: currentUser.when(
-            data: (user) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'CampusGPT Chat',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          flexibleSpace: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.85),
+                  border: const Border(
+                      bottom: BorderSide(color: AppColors.border, width: 0.5)),
                 ),
-                if (user != null)
-                  Text(
-                    'Hello, ${user.fullName}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textMedium,
-                          fontSize: 12,
-                        ),
+              ),
+            ),
+          ),
+          iconTheme: const IconThemeData(color: AppColors.textDark),
+          title: currentUser.when(
+            data: (user) => Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.school_rounded,
+                      color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Assistant',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textDark,
+                          ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            loading: () => const Text('Loading...'),
-            error: (err, stack) {
-              print('❌ USER ERROR: $err');
-              print('STACK: $stack');
-              return const Text('Chat');
-            },
+            loading: () => const Text('Loading...',
+                style: TextStyle(color: AppColors.textDark)),
+            error: (err, stack) =>
+                const Text('Chat', style: TextStyle(color: AppColors.textDark)),
           ),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.textDark,
           actions: [
             IconButton(
               onPressed: () {
-                if (context.mounted) {
-                  Future.microtask(() {
-                    if (context.mounted && context.canPop()) {
-                      context.push('/history');
-                    }
-                  });
-                }
+                if (context.mounted)
+                  Future.microtask(() => context.push('/history'));
               },
-              icon: const Icon(Icons.history),
-              tooltip: 'Chat History',
-            ),
-            PopupMenuButton(
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  child: const Row(
-                    children: [
-                      Icon(Icons.home, size: 20),
-                      SizedBox(width: 12),
-                      Text('Dashboard'),
-                    ],
-                  ),
-                  onTap: () {
-                    if (context.mounted && context.canPop()) {
-                      Future.microtask(() {
-                        if (context.mounted) {
-                          context.pop();
-                        }
-                      });
-                    }
-                  },
-                ),
-                PopupMenuItem(
-                  child: const Row(
-                    children: [
-                      Icon(Icons.person, size: 20),
-                      SizedBox(width: 12),
-                      Text('Profile'),
-                    ],
-                  ),
-                  onTap: () {
-                    if (context.mounted) {
-                      Future.microtask(() {
-                        if (context.mounted) {
-                          context.push('/profile');
-                        }
-                      });
-                    }
-                  },
-                ),
-                PopupMenuItem(
-                  child: const Row(
-                    children: [
-                      Icon(Icons.logout, size: 20),
-                      SizedBox(width: 12),
-                      Text('Logout'),
-                    ],
-                  ),
-                  onTap: () {
-                    if (context.mounted) {
-                      Future.microtask(() async {
-                        try {
-                          await ref.read(authStateProvider.notifier).logout();
-                          if (context.mounted) {
-                            await Future.delayed(
-                                const Duration(milliseconds: 200));
-                            if (context.mounted) {
-                              context.go('/login');
-                            }
-                          }
-                        } catch (e) {
-                          print('❌ Logout error: $e');
-                        }
-                      });
-                    }
-                  },
-                ),
-              ],
+              icon:
+                  const Icon(Icons.history_rounded, color: AppColors.textDark),
             ),
           ],
         ),
         body: Column(
           children: [
+            SizedBox(
+                height: MediaQuery.of(context).padding.top +
+                    56), // Account for AppBar
             // Chat Messages
             Expanded(
               child: chatMessages.isEmpty
@@ -276,33 +239,59 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (isLoading)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                            color: AppColors.shadowColor,
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ]),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary)),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(
-                      'CampusGPT is thinking...',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textMedium,
-                          ),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.md),
+                      Text(
+                        'Generating response...',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            // Input Field
-            ChatInputField(
-              controller: _messageController,
-              onSendPressed: _handleSendMessage,
-              isLoading: isLoading,
+            // Input Field wrapped with aesthetic container
+            Container(
+              decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                      top: BorderSide(color: AppColors.border, width: 1)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: AppColors.shadowColor,
+                        blurRadius: 10,
+                        offset: Offset(0, -4))
+                  ]),
+              child: ChatInputField(
+                controller: _messageController,
+                onSendPressed: _handleSendMessage,
+                isLoading: isLoading,
+              ),
             ),
           ],
         ),
@@ -316,42 +305,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 100,
-            height: 100,
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(colors: AppColors.gradient),
+              color: AppColors.primary.withOpacity(0.05),
+              border: Border.all(
+                  color: AppColors.primary.withOpacity(0.1), width: 2),
             ),
-            child: const Icon(
-              Icons.school_rounded,
-              size: 60,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.menu_book_rounded,
+                size: 64, color: AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
-            'Welcome to CampusGPT',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            'How can I help you today?',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textDark,
+                letterSpacing: -0.5),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Ask me anything about your course materials',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textMedium),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Text(
-              'I can help you understand complex topics, answer questions, and provide insights from your course documents.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.textLight),
-            ),
+            'Ask me questions about campus resources,\ncareer paths, or university events.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMedium,
+                height: 1.5,
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),

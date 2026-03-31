@@ -1,7 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../models/career_guidance_model.dart';
 import '../providers/providers.dart';
@@ -39,7 +40,6 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
       setState(() => _selectedTab = _tabController.index);
     });
 
-    // Initialize controllers
     _interestsController = TextEditingController();
     _knownSkillsController = TextEditingController();
     _careerGoalController = TextEditingController();
@@ -63,25 +63,21 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
   }
 
   Future<void> _submitForm(WidgetRef ref) async {
-    // Validate form
-    if (_interestsController.text.isEmpty ||
-        _knownSkillsController.text.isEmpty ||
-        _careerGoalController.text.isEmpty ||
-        _projectsDoneController.text.isEmpty ||
-        _educationBranchController.text.isEmpty ||
-        _yearOfStudyController.text.isEmpty ||
-        _selfWeaknessController.text.isEmpty) {
+    // Only require resume file
+    if (_selectedResumeFilePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
+        const SnackBar(
+          content: Text('Please upload your resume to get AI guidance.',
+              style: TextStyle(color: Colors.white)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
 
-    // Set loading state
     ref.read(careerGuidanceLoadingProvider.notifier).state = true;
-
     try {
-      // Create QA responses
       final qaResponses = QAResponses(
         interests: _interestsController.text,
         knownSkills: _knownSkillsController.text,
@@ -93,126 +89,128 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
         selfWeakness: _selfWeaknessController.text,
       );
 
-      // Call service
       final service = ref.read(careerGuidanceServiceProvider);
       final response = await service.generateCareerGuidance(
         resumeFilePath: _selectedResumeFilePath,
         qaResponses: qaResponses,
       );
 
-      // Store result
       ref.read(careerGuidanceResultProvider.notifier).setResult(response);
-
-      // Show success and navigate to results
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Career guidance generated successfully!')),
-        );
-        _tabController.animateTo(1);
-      }
+      if (mounted) _tabController.animateTo(1);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
-      print('❌ Error: $e');
     } finally {
       ref.read(careerGuidanceLoadingProvider.notifier).state = false;
     }
   }
 
-  void _resetForm() {
-    _interestsController.clear();
-    _knownSkillsController.clear();
-    _careerGoalController.clear();
-    _projectsDoneController.clear();
-    _educationBranchController.clear();
-    _yearOfStudyController.clear();
-    _selfWeaknessController.clear();
-    _hasInternship = false;
-    _selectedResumeFilePath = null;
-    _selectedResumeFileName = null;
-    setState(() {});
-  }
-
   Future<void> _pickResumeFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['txt', 'pdf', 'doc', 'docx'],
-        withData: false,
-      );
-
+          type: FileType.custom,
+          allowedExtensions: ['txt', 'pdf', 'doc', 'docx']);
       if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
         setState(() {
-          _selectedResumeFilePath = file.path;
-          _selectedResumeFileName = file.name;
+          _selectedResumeFilePath = result.files.first.path;
+          _selectedResumeFileName = result.files.first.name;
         });
-        print('📄 Selected resume: $_selectedResumeFileName');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Resume selected: $_selectedResumeFileName'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
       }
-    } catch (e) {
-      print('❌ Error picking file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error selecting file: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    } catch (e) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgWhite,
+      backgroundColor: AppColors.bgDark, // Clean light background
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        iconTheme: const IconThemeData(color: AppColors.textDark),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textDark,
-        title: const Text('Career Path'),
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          // Custom Tab Bar
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildTabButton('📋 Guidance', 0),
-                  const SizedBox(width: AppSpacing.md),
-                  _buildTabButton('🎯 Results', 1),
-                  const SizedBox(width: AppSpacing.md),
-                  _buildTabButton('🏆 Resources', 2),
-                ],
+        backgroundColor: Colors.transparent,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85),
+                border: const Border(
+                    bottom: BorderSide(color: AppColors.border, width: 0.5)),
               ),
             ),
           ),
+        ),
+        title: const Text('Career Path',
+            style: TextStyle(
+                color: AppColors.textDark,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5)),
+      ),
+      body: Stack(fit: StackFit.expand, children: [
+        Positioned(
+          top: -50,
+          left: -150,
+          child: _buildGlowBlob(AppColors.primary, 400),
+        ),
+        Positioned(
+          bottom: 0,
+          right: -100,
+          child: _buildGlowBlob(AppColors.primaryLight, 400),
+        ),
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+          child: Container(color: Colors.transparent),
+        ),
+        SafeArea(
+          child: Column(
+            children: [
+              // Sleek Custom Tab Bar
+              Padding(
+                padding: const EdgeInsets.only(
+                    top: AppSpacing.lg,
+                    left: AppSpacing.lg,
+                    right: AppSpacing.lg),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildTabButton('📝 Form', 0),
+                      const SizedBox(width: AppSpacing.md),
+                      _buildTabButton('🎯 Results', 1),
+                      const SizedBox(width: AppSpacing.md),
+                      _buildTabButton('🏆 Resources', 2),
+                    ],
+                  ),
+                ),
+              ),
 
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildGuidanceTab(ref),
-                _buildResultsTab(ref),
-                _buildResourcesTab(context),
-              ],
-            ),
+              // Tab Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildGuidanceTab(ref),
+                    _buildResultsTab(ref),
+                    _buildResourcesTab(context),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildGlowBlob(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withOpacity(0.08),
       ),
     );
   }
@@ -221,22 +219,34 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
     final isActive = _selectedTab == index;
     return GestureDetector(
       onTap: () => _tabController.animateTo(index),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+            horizontal: AppSpacing.xl, vertical: AppSpacing.md),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border:
-              isActive ? null : Border.all(color: AppColors.border, width: 1.5),
+          color: isActive ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+              color: isActive ? Colors.transparent : AppColors.border),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4))
+                ]
+              : [
+                  BoxShadow(
+                      color: AppColors.shadowColor,
+                      blurRadius: 4,
+                      offset: Offset(0, 2))
+                ],
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: isActive ? Colors.white : AppColors.textDark,
-                fontWeight: FontWeight.bold,
+                color: isActive ? Colors.white : AppColors.textMedium,
+                fontWeight: FontWeight.w700,
               ),
         ),
       ),
@@ -251,253 +261,231 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Career Guidance Form', '📝'),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Fill in your details to get personalized career recommendations',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textMedium),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Form Fields
-          _buildInputField(
-            label: 'Your Interests',
-            hint: 'e.g., Machine Learning, Web Development',
-            controller: _interestsController,
-            icon: Icons.favorite_border_rounded,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildInputField(
-            label: 'Known Skills',
-            hint: 'e.g., Python, JavaScript, SQL',
-            controller: _knownSkillsController,
-            icon: Icons.psychology_rounded,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildInputField(
-            label: 'Career Goal',
-            hint: 'e.g., Become a Data Scientist',
-            controller: _careerGoalController,
-            icon: Icons.flag_rounded,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildInputField(
-            label: 'Projects Done',
-            hint: 'Describe your notable projects',
-            controller: _projectsDoneController,
-            icon: Icons.work_rounded,
-            maxLines: 3,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildInputField(
-            label: 'Education Branch',
-            hint: 'e.g., Computer Science, Engineering',
-            controller: _educationBranchController,
-            icon: Icons.school_rounded,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildInputField(
-            label: 'Year of Study',
-            hint: 'e.g., 3rd Year, Junior',
-            controller: _yearOfStudyController,
-            icon: Icons.calendar_today_rounded,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Resume File Picker (Optional)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.bgDark,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.attach_file_rounded, color: AppColors.primary),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(
-                      'Resume (Optional)',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                if (_selectedResumeFileName != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(
-                        color: AppColors.success.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Resume Upload Section
+          AnimatedAppear(
+              child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: AppColors.shadowColor,
+                          blurRadius: 8,
+                          offset: Offset(0, 4))
+                    ],
+                  ),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle_rounded,
-                                  color: AppColors.success),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Text(
-                                  _selectedResumeFileName!,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: AppColors.success,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
+                        const Text('Upload Resume (Required)',
+                            style: TextStyle(
+                                color: AppColors.textDark,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                            'Let CampusGPT analyze your resume for better results.',
+                            style: TextStyle(
+                                color: AppColors.textLight,
+                                fontSize: 13,
+                                height: 1.4)),
+                        const SizedBox(height: AppSpacing.md),
+                        InkWell(
+                          onTap: _pickResumeFile,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgDark,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                    color: AppColors.primaryLight,
+                                    width: 1.5,
+                                    style: BorderStyle.solid),
                               ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedResumeFilePath = null;
-                              _selectedResumeFileName = null;
-                            });
-                          },
-                          child: Icon(Icons.close_rounded,
-                              color: AppColors.error, size: 20),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _pickResumeFile,
-                      icon: const Icon(Icons.upload_file_rounded),
-                      label: const Text('Select Resume from Device'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryLight,
-                        foregroundColor: AppColors.primary,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Supported: .txt, .pdf, .doc, .docx',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: AppColors.textMedium),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Internship Toggle
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.bgDark,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.business_rounded, color: AppColors.primary),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(
-                      'Have internship experience?',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ],
-                ),
-                Switch(
-                  value: _hasInternship,
-                  onChanged: (value) {
-                    setState(() => _hasInternship = value);
-                  },
-                  activeColor: AppColors.primary,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
+                              child: Column(children: [
+                                Icon(Icons.upload_file_rounded,
+                                    color: AppColors.primary, size: 32),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _selectedResumeFileName ??
+                                      'Tap to select a document (.pdf, .doc)',
+                                  style: TextStyle(
+                                      color: _selectedResumeFileName != null
+                                          ? AppColors.primaryDark
+                                          : AppColors.textMedium,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ])),
+                        )
+                      ]))),
+          const SizedBox(height: AppSpacing.xl),
 
           _buildInputField(
-            label: 'Your Weakness',
-            hint: 'Areas you want to improve in',
-            controller: _selfWeaknessController,
-            icon: Icons.lightbulb_outline_rounded,
-          ),
+              label: 'Your Interests',
+              hint: 'e.g., AI, Web Dev',
+              controller: _interestsController,
+              icon: Icons.favorite_rounded),
+          const SizedBox(height: AppSpacing.lg),
+          _buildInputField(
+              label: 'Known Skills',
+              hint: 'e.g., Python, C++',
+              controller: _knownSkillsController,
+              icon: Icons.psychology_rounded),
+          const SizedBox(height: AppSpacing.lg),
+          _buildInputField(
+              label: 'Career Goal',
+              hint: 'e.g., Data Scientist',
+              controller: _careerGoalController,
+              icon: Icons.flag_rounded),
+          const SizedBox(height: AppSpacing.lg),
+          _buildInputField(
+              label: 'Projects Done',
+              hint: 'Describe projects',
+              controller: _projectsDoneController,
+              icon: Icons.work_rounded,
+              maxLines: 3),
+          const SizedBox(height: AppSpacing.lg),
+          _buildInputField(
+              label: 'Education',
+              hint: 'e.g., CS',
+              controller: _educationBranchController,
+              icon: Icons.school_rounded),
+          const SizedBox(height: AppSpacing.lg),
+          _buildInputField(
+              label: 'Year',
+              hint: 'e.g., 3rd',
+              controller: _yearOfStudyController,
+              icon: Icons.calendar_today_rounded),
           const SizedBox(height: AppSpacing.xl),
+          Container(
+              padding: EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(children: [
+                Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.business_center_rounded,
+                        color: AppColors.primary)),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(
+                    child: Text('Internship Experience',
+                        style: TextStyle(
+                            color: AppColors.textDark,
+                            fontWeight: FontWeight.bold))),
+                Switch(
+                    value: _hasInternship,
+                    onChanged: (v) => setState(() => _hasInternship = v),
+                    activeColor: AppColors.primary,
+                    activeTrackColor: AppColors.primaryLight.withOpacity(0.5)),
+              ])),
+          const SizedBox(height: AppSpacing.xxxl),
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: isLoading ? null : () => _resetForm(),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reset'),
-                  style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                    backgroundColor: AppColors.bgDark,
-                    foregroundColor: AppColors.textDark,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: isLoading ? null : () => _submitForm(ref),
-                  icon: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(Icons.rocket_launch_rounded),
-                  label: Text(isLoading ? 'Generating...' : 'Get Guidance'),
-                  style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                    backgroundColor: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            width: double.infinity,
+            height: 55,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              boxShadow: [
+                BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: Offset(0, 5))
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: isLoading ? null : () => _submitForm(ref),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.xl))),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Text('Get AI Guidance',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+            ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: 50),
         ],
       ),
+    );
+  }
+
+  Widget _buildInputField(
+      {required String label,
+      required String hint,
+      required TextEditingController controller,
+      required IconData icon,
+      int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0),
+          child: Text(label,
+              style: const TextStyle(
+                  color: AppColors.textDark, fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(boxShadow: [
+            BoxShadow(
+                color: AppColors.shadowColor,
+                blurRadius: 8,
+                offset: Offset(0, 2))
+          ]),
+          child: TextFormField(
+            controller: controller,
+            maxLines: maxLines,
+            style: const TextStyle(
+                color: AppColors.textDark, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(
+                    left: 8.0, right: 8.0, top: 4.0, bottom: 4.0),
+                child: Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: EdgeInsets.only(
+                        bottom: maxLines > 1 ? (maxLines - 1) * 18.0 : 0),
+                    decoration: BoxDecoration(
+                        color: AppColors.bgDark,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Icon(icon, color: AppColors.primary, size: 20)),
+              ),
+              hintText: hint,
+              hintStyle: const TextStyle(color: AppColors.textLight),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -509,767 +497,513 @@ class _CareerPathScreenState extends ConsumerState<CareerPathScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_rounded, size: 64, color: AppColors.textLight),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'No guidance yet',
-              style: Theme.of(context).textTheme.titleLarge,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.auto_awesome,
+                  size: 60, color: AppColors.primaryLight),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Fill the form to get your career guidance',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textMedium),
-            ),
+            const SizedBox(height: 24),
+            const Text('No guidance yet',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textDark,
+                    letterSpacing: -0.5)),
+            const SizedBox(height: 8),
+            const Text('Fill the form to unleash your potential.',
+                style: TextStyle(
+                    color: AppColors.textMedium, fontWeight: FontWeight.w500)),
           ],
         ),
       );
     }
 
+    // Modern Light Cards implementation for comprehensive results...
+    final primary = resultAsync.guidance.primaryCareer;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _buildSectionTitle('Your Career Guidance', '🎯'),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Student Profile Card
-          _buildStudentProfileCard(resultAsync.studentProfile),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Top Recommendations
-          _buildTopRecommendationsCard(resultAsync.guidance),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Primary Career Details
-          _buildPrimaryCareersCard(resultAsync.guidance.primaryCareer),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Summary
-          _buildSummaryCard(resultAsync.guidance.summary),
-          const SizedBox(height: AppSpacing.xl),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResourcesTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Learning Resources', '🏆'),
-          const SizedBox(height: AppSpacing.lg),
-          _buildResourceCard(
-            icon: Icons.school_rounded,
-            title: 'Online Courses',
-            description: 'Access Udemy, Coursera, and other platforms',
-            color: const Color(0xFF667eea),
-            onTap: () {},
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildResourceCard(
-            icon: Icons.people_rounded,
-            title: 'Mentorship',
-            description: 'Connect with industry professionals',
-            color: const Color(0xFF2563EB),
-            onTap: () {},
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildResourceCard(
-            icon: Icons.trending_up_rounded,
-            title: 'Career Articles',
-            description: 'Read curated articles on career development',
-            color: const Color(0xFF10B981),
-            onTap: () {},
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildResourceCard(
-            icon: Icons.code_rounded,
-            title: 'Coding Practice',
-            description: 'Improve your technical skills',
-            color: const Color(0xFFF59E0B),
-            onTap: () {},
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    required IconData icon,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(children: [
+          AnimatedAppear(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                      color: AppColors.shadowColor,
+                      blurRadius: 20,
+                      offset: Offset(0, 8))
+                ],
               ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hint,
-            prefixIcon: Icon(icon, color: AppColors.primary),
-            filled: true,
-            fillColor: AppColors.bgDark,
-            contentPadding: const EdgeInsets.all(AppSpacing.lg),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title, String emoji) {
-    return AnimatedAppear(
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: AppSpacing.md),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStudentProfileCard(StudentProfile profile) {
-    return AnimatedAppear(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF4C51BF), Color(0xFF5A67D8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your Profile Summary',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    letterSpacing: 0.3,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildProfileField('Degree', profile.educationDegree),
-                _buildProfileField('Branch', profile.educationBranch),
-                _buildProfileField('CGPA', profile.cgpa.toString()),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildProfileField(
-                    'Internship', profile.hasInternship ? 'Yes ✓' : 'No'),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Skills Detected',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: profile.skillsDetected
-                  .map(
-                    (skill) => Chip(
-                      label: Text(
-                        skill,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      backgroundColor: const Color(0xFF2D3748).withOpacity(0.7),
-                      side: const BorderSide(
-                        color: Colors.white54,
-                        width: 1.5,
-                      ),
-                      elevation: 2,
-                      shadowColor: Colors.black26,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white60,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTopRecommendationsCard(Guidance guidance) {
-    return AnimatedAppear(
-      delay: const Duration(milliseconds: 200),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.bgDark,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Top Career Recommendations',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ...guidance.topCareerRecommendations.asMap().entries.map((entry) {
-              final index = entry.key;
-              final rec = entry.value;
-              return Padding(
-                padding: EdgeInsets.only(
-                    bottom: index < guidance.topCareerRecommendations.length - 1
-                        ? AppSpacing.md
-                        : 0),
-                child: Column(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.sm),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.md),
-                              ),
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Text(
-                              rec.career,
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ],
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.rocket_launch_rounded,
+                              color: AppColors.primary),
                         ),
-                        Text(
-                          '${rec.confidencePercent.toStringAsFixed(1)}%',
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
+                        const SizedBox(width: 12),
+                        const Text('Primary Career Match',
+                            style: TextStyle(
+                                color: AppColors.textMedium,
+                                fontWeight: FontWeight.w700)),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: LinearProgressIndicator(
-                        value: rec.confidencePercent / 100,
-                        minHeight: 6,
-                        backgroundColor: AppColors.border,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          rec.confidencePercent > 70
-                              ? AppColors.success
-                              : rec.confidencePercent > 40
-                                  ? AppColors.warning
-                                  : AppColors.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrimaryCareersCard(PrimaryCareer career) {
-    return AnimatedAppear(
-      delay: const Duration(milliseconds: 400),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Primary Career Header
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Primary Career Path',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Colors.white70,
-                          ),
-                    ),
+                    const SizedBox(height: 16),
+                    Text(primary.name,
+                        style: const TextStyle(
+                            color: AppColors.primaryDark,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5)),
+                    const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Text(
-                        '${career.confidencePercent.toStringAsFixed(1)}%',
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text('${primary.confidencePercent}% Match',
+                          style: const TextStyle(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(resultAsync.guidance.summary,
                         style: const TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  career.name,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
+                            color: AppColors.textDark,
+                            fontSize: 15,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500)),
+                  ]),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // Skills You Have
-          _buildSkillsSection(
-            'Skills You Have ✓',
-            career.skillsYouHave,
-            Colors.green[50]!,
-            AppColors.success,
-          ),
+          // Top Recommendations (Alternative careers)
+          if (resultAsync.guidance.topCareerRecommendations.isNotEmpty)
+            AnimatedAppear(
+                delay: const Duration(milliseconds: 100),
+                child: _buildSectionCard(
+                    title: 'Other Strong Matches',
+                    icon: Icons.lightbulb_rounded,
+                    iconColor: AppColors.warning,
+                    child: Column(
+                        children: resultAsync.guidance.topCareerRecommendations
+                            .map((career) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Row(children: [
+                                  Expanded(
+                                      child: Text(career.career,
+                                          style: const TextStyle(
+                                              color: AppColors.textDark,
+                                              fontWeight: FontWeight.w600))),
+                                  Text('${career.confidencePercent}%',
+                                      style: const TextStyle(
+                                          color: AppColors.warning,
+                                          fontWeight: FontWeight.bold)),
+                                ])))
+                            .toList()))),
+
           const SizedBox(height: AppSpacing.lg),
 
-          // Skill Gaps
-          _buildSkillsSection(
-            'Skill Gaps to Fill',
-            career.skillGaps,
-            Colors.red[50]!,
-            AppColors.error,
-          ),
+          // All Skills Detected from Resume
+          if (resultAsync.studentProfile.skillsDetected.isNotEmpty)
+            AnimatedAppear(
+                delay: const Duration(milliseconds: 150),
+                child: _buildSectionCard(
+                    title: 'All Skills from Your Resume',
+                    icon: Icons.verified_rounded,
+                    iconColor: const Color(0xFF6366F1),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${resultAsync.studentProfile.skillsDetected.length} skills detected',
+                            style: const TextStyle(
+                                color: AppColors.textLight,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildPillList(
+                              resultAsync.studentProfile.skillsDetected,
+                              const Color(0xFF6366F1)),
+                        ]))),
+
           const SizedBox(height: AppSpacing.lg),
 
-          // Good to Have Skills
-          _buildSkillsSection(
-            'Good to Have Skills',
-            career.goodToHaveSkills,
-            Colors.blue[50]!,
-            AppColors.info,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Improvement Areas
-          _buildSkillsSection(
-            'Improvement Areas',
-            career.improvementAreas,
-            Colors.orange[50]!,
-            AppColors.warning,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Recommended Courses (all courses including bonus)
-          if (career.getAllCourses().isNotEmpty) ...[
-            _buildCoursesSection(career.getAllCourses()),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSkillsSection(
-      String title, List<String> skills, Color bgColor, Color accentColor) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: accentColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: accentColor,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (skills.isEmpty)
-            Text(
-              'No items',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textMedium),
-            )
-          else
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: skills
-                  .map(
-                    (skill) => Chip(
-                      label: Text(skill),
-                      backgroundColor: Colors.white,
-                      side: BorderSide(color: accentColor.withOpacity(0.5)),
-                    ),
-                  )
-                  .toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCoursesSection(List<RecommendedCourse> courses) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.bgDark,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Recommended Courses',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ...courses.asMap().entries.map((entry) {
-            final course = entry.value;
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: entry.key < courses.length - 1 ? AppSpacing.md : 0),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          AnimatedAppear(
+              delay: const Duration(milliseconds: 200),
+              child: _buildSectionCard(
+                  title: 'Skills Analysis',
+                  icon: Icons.analytics_rounded,
+                  iconColor: AppColors.info,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        if (primary.skillsYouHave.isNotEmpty) ...[
+                          const Text('Skills You Already Have:',
+                              style: TextStyle(
+                                  color: AppColors.textMedium,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                          const SizedBox(height: 8),
+                          _buildPillList(
+                              primary.skillsYouHave, AppColors.success),
+                          const SizedBox(height: 16),
+                        ],
+                        if (primary.skillGaps.isNotEmpty) ...[
+                          const Text('Skill Gaps to Address:',
+                              style: TextStyle(
+                                  color: AppColors.textMedium,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                          const SizedBox(height: 8),
+                          _buildPillList(primary.skillGaps, AppColors.error),
+                          const SizedBox(height: 16),
+                        ],
+                        if (primary.goodToHaveSkills.isNotEmpty) ...[
+                          const Text('Good to Have Skills:',
+                              style: TextStyle(
+                                  color: AppColors.textMedium,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                          const SizedBox(height: 8),
+                          _buildPillList(
+                              primary.goodToHaveSkills, AppColors.info),
+                          const SizedBox(height: 16),
+                        ],
+                        if (primary.improvementAreas.isNotEmpty) ...[
+                          const Text('Key Improvement Areas:',
+                              style: TextStyle(
+                                  color: AppColors.textMedium,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                          const SizedBox(height: 8),
+                          _buildPillList(
+                              primary.improvementAreas, AppColors.warning),
+                        ]
+                      ]))),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          if (primary.recommendedCourses.isNotEmpty)
+            AnimatedAppear(
+                delay: const Duration(milliseconds: 300),
+                child: _buildSectionCard(
+                    title: 'Suggested Courses',
+                    icon: Icons.school_rounded,
+                    iconColor: AppColors.primary,
+                    child: Column(
+                        children: primary.recommendedCourses
+                            .map((c) => _buildCourseItem(c, isBonus: false))
+                            .toList()))),
+
+          if (primary.recommendedCourses.isNotEmpty)
+            const SizedBox(height: AppSpacing.lg),
+
+          if (primary.bonusCourses.isNotEmpty)
+            AnimatedAppear(
+                delay: const Duration(milliseconds: 400),
+                child: _buildSectionCard(
+                    title: 'Courses for Growth',
+                    icon: Icons.star_rounded,
+                    iconColor: AppColors.warning,
+                    child: Column(
+                        children: primary.bonusCourses
+                            .map((c) => _buildCourseItem(c, isBonus: true))
+                            .toList()))),
+
+          const SizedBox(height: 100),
+        ]));
+  }
+
+  // Helper to get platform-specific colors and icons
+  Map<String, dynamic> _getPlatformStyle(String platform) {
+    final platformLower = platform.toLowerCase();
+    if (platformLower.contains('coursera')) {
+      return {
+        'color': const Color(0xFF0056D2),
+        'icon': Icons.play_circle_filled,
+        'bg': const Color(0xFF0056D2).withOpacity(0.1)
+      };
+    } else if (platformLower.contains('udemy')) {
+      return {
+        'color': const Color(0xFFA435F0),
+        'icon': Icons.video_library,
+        'bg': const Color(0xFFA435F0).withOpacity(0.1)
+      };
+    } else if (platformLower.contains('edx')) {
+      return {
+        'color': const Color(0xFF051C3D),
+        'icon': Icons.book,
+        'bg': const Color(0xFF051C3D).withOpacity(0.1)
+      };
+    } else if (platformLower.contains('linkedin')) {
+      return {
+        'color': const Color(0xFF0077B5),
+        'icon': Icons.people,
+        'bg': const Color(0xFF0077B5).withOpacity(0.1)
+      };
+    } else if (platformLower.contains('youtube')) {
+      return {
+        'color': const Color(0xFFFF0000),
+        'icon': Icons.play_arrow,
+        'bg': const Color(0xFFFF0000).withOpacity(0.1)
+      };
+    } else {
+      return {
+        'color': AppColors.primary,
+        'icon': Icons.book_outlined,
+        'bg': AppColors.primary.withOpacity(0.1)
+      };
+    }
+  }
+
+  Widget _buildCourseItem(RecommendedCourse course, {required bool isBonus}) {
+    final platformStyle = _getPlatformStyle(course.platform);
+    return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+                color: AppColors.shadowColor,
+                blurRadius: 8,
+                offset: Offset(0, 4))
+          ],
+        ),
+        child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () async {
+                await _openCourseUrl(course.url, course.course);
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Platform icon with platform color
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: platformStyle['bg'] as Color,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        platformStyle['icon'] as IconData,
+                        color: platformStyle['color'] as Color,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Course details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            course.course,
+                            style: const TextStyle(
+                              color: AppColors.textDark,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
                             children: [
-                              Text(
-                                course.skill,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: AppColors.textMedium,
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: platformStyle['bg'] as Color,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  course.platform,
+                                  style: TextStyle(
+                                    color: platformStyle['color'] as Color,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                course.course,
-                                style: Theme.of(context).textTheme.titleSmall,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Gap: ${course.skill}',
+                                  style: const TextStyle(
+                                    color: AppColors.textLight,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Text(
-                            course.platform,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          try {
-                            final Uri courseUri = Uri.parse(course.url);
-
-                            // Directly try to open with in-app webview
-                            // (works on all devices without needing external browser)
-                            bool launched = await launchUrl(
-                              courseUri,
-                              mode: LaunchMode.inAppWebView,
-                            );
-
-                            if (!launched) {
-                              // If in-app webview fails, try external app
-                              if (await canLaunchUrl(courseUri)) {
-                                await launchUrl(
-                                  courseUri,
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              } else {
-                                // Last resort: show URL to user
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                            'Unable to open link automatically'),
-                                        const SizedBox(height: 8),
-                                        SelectableText(
-                                          course.url,
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    duration: const Duration(seconds: 8),
-                                  ),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error opening course: $e'),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                        label: const Text('View Course'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.md),
-                        ),
+                    const SizedBox(width: 8),
+                    // Open button
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: AppColors.textLight,
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
+            )));
   }
 
-  Widget _buildSummaryCard(String summary) {
-    return AnimatedAppear(
-      delay: const Duration(milliseconds: 600),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+  // Helper method to open course URL safely
+  Future<void> _openCourseUrl(String url, String courseName) async {
+    url = url.trim();
+
+    if (url.isEmpty || url == '#') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course link not available'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Normalize URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+
+    final uri = Uri.parse(url);
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      print('🔗 Course URL: $url | Can launch: $canLaunch');
+
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        print('✅ Opened: $courseName');
+      } else {
+        // Fallback: try with different mode
+        try {
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
+          print('✅ Opened (platformDefault): $courseName');
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not open link'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening course: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSectionCard(
+      {required String title,
+      required IconData icon,
+      required Color iconColor,
+      required Widget child}) {
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Summary',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              summary,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+                color: AppColors.shadowColor,
+                blurRadius: 10,
+                offset: Offset(0, 4))
           ],
         ),
-      ),
-    );
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 8),
+            Text(title,
+                style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    letterSpacing: -0.5)),
+          ]),
+          const SizedBox(height: 16),
+          child,
+        ]));
   }
 
-  Widget _buildResourceCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedAppear(
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Icon(icon, color: color, size: 28),
+  Widget _buildPillList(List<String> items, Color color) {
+    return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: items
+            .map((e) => Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withOpacity(0.3)),
                   ),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          description,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.textMedium),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.arrow_forward_rounded, color: AppColors.textLight),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+                  child: Text(e,
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ))
+            .toList());
+  }
+
+  Widget _buildResourcesTab(BuildContext context) {
+    return const Center(
+        child: Text("Resources Tab",
+            style: TextStyle(
+                color: AppColors.textMedium, fontWeight: FontWeight.w500)));
   }
 }

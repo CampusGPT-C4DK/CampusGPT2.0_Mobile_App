@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../config/app_colors.dart';
 import '../providers/providers.dart';
+import '../models/chat_models.dart';
 
 class ChatHistoryScreen extends ConsumerStatefulWidget {
   const ChatHistoryScreen({Key? key}) : super(key: key);
@@ -74,18 +75,13 @@ class _ChatHistoryScreenState extends ConsumerState<ChatHistoryScreen> {
     );
   }
 
-  Widget _buildHistoryItem(BuildContext context, dynamic chat, int index) {
-    final question = chat['question'] as String? ?? 'Untitled Chat';
-    final answer = chat['answer'] as String? ?? '';
-    final confidenceScore = (chat['confidence_score'] is num
-        ? chat['confidence_score']
-        : chat['confidenceScore'] ?? 85) as num;
-    final createdAt = chat['created_at'] ?? chat['createdAt'] ?? DateTime.now();
+  Widget _buildHistoryItem(BuildContext context, dynamic chatItem, int index) {
+    final chat = chatItem as ChatHistory;
+    final question = chat.question.isNotEmpty ? chat.question : 'Untitled Chat';
+    final answer = chat.answer;
+    final confidence = chat.confidenceScore;
+    final dateTime = chat.createdAt;
 
-    final dateTime =
-        createdAt is String ? DateTime.parse(createdAt) : createdAt as DateTime;
-
-    final confidence = confidenceScore.toDouble();
     final color = confidence > 80
         ? Colors.green
         : confidence > 50

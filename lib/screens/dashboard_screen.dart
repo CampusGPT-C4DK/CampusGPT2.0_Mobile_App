@@ -13,23 +13,39 @@ class DashboardScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgWhite,
+      backgroundColor: AppColors.bgDark, // Light gray/blue base
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textDark,
-        actions: [
-          IconButton(
-            onPressed: () => _showUserMenu(context, ref),
-            icon: const Icon(Icons.person_rounded),
-            tooltip: 'Profile Menu',
+        title: Text(
+          'CampusGPT',
+          style: TextStyle(
+            color: AppColors.primaryDark,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
           ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => _showUserMenu(context, ref),
+                  icon: const Icon(Icons.menu_rounded),
+                  tooltip: 'Menu',
+                ),
+              ],
+            ),
+          )
         ],
       ),
       body: SingleChildScrollView(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl, vertical: AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -41,13 +57,17 @@ class DashboardScreen extends ConsumerWidget {
 
                 // Main Options - Grid Layout
                 AnimatedAppear(
-                  delay: const Duration(milliseconds: 200),
+                  delay: const Duration(milliseconds: 100),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'What would you like to do?',
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        'Explore',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
+                              letterSpacing: -0.5,
+                            ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -57,34 +77,23 @@ class DashboardScreen extends ConsumerWidget {
                           Expanded(
                             child: _buildMainOption(
                               context: context,
-                              title: 'Career Path',
-                              description:
-                                  'Explore career guidance\nand development',
-                              icon: Icons.trending_up_rounded,
-                              iconBg: const LinearGradient(
-                                colors: [
-                                  Color(0xFF667eea),
-                                  Color(0xFF764ba2),
-                                ],
-                              ),
-                              onTap: () => _navigateToCareerPath(context),
-                              hasBadge: true,
+                              title: 'AI Chat',
+                              description: 'Ask questions & learn',
+                              icon: Icons.forum_rounded,
+                              iconBg: AppColors.primary,
+                              onTap: () => context.push('/chat'),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.lg),
                           Expanded(
                             child: _buildMainOption(
                               context: context,
-                              title: 'Chat',
-                              description: 'Ask questions\nabout courses',
-                              icon: Icons.chat_rounded,
-                              iconBg: const LinearGradient(
-                                colors: [
-                                  Color(0xFF2563EB),
-                                  Color(0xFF1E40AF),
-                                ],
-                              ),
-                              onTap: () => context.push('/chat'),
+                              title: 'Career Path',
+                              description: 'Discover your future',
+                              icon: Icons.rocket_launch_rounded,
+                              iconBg: const Color(0xFF6366F1), // Indigo
+                              onTap: () => _navigateToCareerPath(context),
+                              hasBadge: true,
                             ),
                           ),
                         ],
@@ -96,20 +105,20 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxxl),
 
                 // Quick Actions Section
-                AnimatedAppear(
-                  delay: const Duration(milliseconds: 400),
-                  child: _buildQuickActionsSection(context),
-                ),
+                // AnimatedAppear(
+                //   delay: const Duration(milliseconds: 200),
+                //   child: _buildQuickActionsSection(context),
+                // ),
 
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xxxl),
 
                 // Recent Activity or Tips
                 AnimatedAppear(
-                  delay: const Duration(milliseconds: 600),
+                  delay: const Duration(milliseconds: 300),
                   child: _buildTipsSection(context),
                 ),
 
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xxxl),
               ],
             ),
           ),
@@ -122,35 +131,35 @@ class DashboardScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Welcome Back! 👋',
-          style: Theme.of(context).textTheme.displayLarge,
-        ),
-        const SizedBox(height: AppSpacing.md),
         currentUser.when(
           data: (user) => Text(
-            user?.fullName ?? 'Student',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textMedium,
+            'Hello, ${user?.fullName?.split(' ')[0] ?? 'Student'} 👋',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                  letterSpacing: -0.5,
                 ),
           ),
           loading: () => const SizedBox(
-            width: 100,
-            height: 20,
-            child: LinearProgressIndicator(),
+            width: 150,
+            height: 32,
+            child: LinearProgressIndicator(
+                color: AppColors.border, backgroundColor: Colors.white),
           ),
           error: (err, _) => Text(
-            'Welcome!',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textMedium,
+            'Hello! 👋',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
                 ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         Text(
-          '${DateTime.now().hour < 12 ? 'Good Morning' : DateTime.now().hour < 18 ? 'Good Afternoon' : 'Good Evening'} 🌟',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textLight,
+          'What would you like to learn today?',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppColors.textMedium,
+                fontWeight: FontWeight.w500,
               ),
         ),
       ],
@@ -162,7 +171,7 @@ class DashboardScreen extends ConsumerWidget {
     required String title,
     required String description,
     required IconData icon,
-    required LinearGradient iconBg,
+    required Color iconBg,
     required VoidCallback onTap,
     bool hasBadge = false,
   }) {
@@ -171,18 +180,18 @@ class DashboardScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFAFAFA), Color(0xFFF3F4F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-            color: AppColors.border,
-            width: 1.5,
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadowColor,
+              blurRadius: 24,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,74 +199,71 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 // Icon Container
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    gradient: iconBg,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    color: iconBg.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                   child: Icon(
                     icon,
-                    color: Colors.white,
-                    size: 28,
+                    color: iconBg,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.lg),
 
                 // Title
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        letterSpacing: -0.5,
                       ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
 
                 // Description
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMedium,
-                        height: 1.4,
+                        color: AppColors.textLight,
+                        height: 1.3,
+                        fontWeight: FontWeight.w500,
                       ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Arrow Icon
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
             if (hasBadge)
               Positioned(
-                top: 0,
-                right: 0,
+                top: -8,
+                right: -8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.success,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
+                      color: AppColors.success,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      boxShadow: [
+                        BoxShadow(
+                            color: AppColors.success.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4)),
+                      ]),
                   child: const Text(
                     'NEW',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -268,75 +274,67 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActionsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: [
-            _buildQuickActionButton(
-              context,
-              '📚 Resume Builder',
-              Colors.blue,
-              () => _navigateToCareerPath(context),
-            ),
-            _buildQuickActionButton(
-              context,
-              '💼 Job Search',
-              Colors.purple,
-              () => _navigateToCareerPath(context),
-            ),
-            _buildQuickActionButton(
-              context,
-              '🎯 Interview Prep',
-              Colors.orange,
-              () => _navigateToCareerPath(context),
-            ),
-            _buildQuickActionButton(
-              context,
-              '💬 Ask Questions',
-              Colors.green,
-              () => _navigateToChat(context),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Widget _buildQuickActionsSection(BuildContext context) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         'Quick Resources',
+  //         style: Theme.of(context).textTheme.titleLarge?.copyWith(
+  //               fontWeight: FontWeight.bold,
+  //               color: AppColors.textDark,
+  //               letterSpacing: -0.5,
+  //             ),
+  //       ),
+  //       const SizedBox(height: AppSpacing.lg),
+  //       Container(
+  //         padding: const EdgeInsets.symmetric(vertical: 8),
+  //         decoration: BoxDecoration(
+  //            color: Colors.white,
+  //            borderRadius: BorderRadius.circular(AppRadius.xl),
+  //            boxShadow: const [
+  //              BoxShadow(color: AppColors.shadowColor, blurRadius: 20, offset: Offset(0, 4))
+  //            ]
+  //         ),
+  //         child: Column(
+  //            children: [
+  //               _buildListAction(context, '📚', 'Resume Builder', 'Create a professional profile', () => _navigateToCareerPath(context)),
+  //               Divider(height: 1, color: AppColors.border.withOpacity(0.5), indent: 56),
+  //               _buildListAction(context, '💼', 'Job Search', 'Explore top opportunities', () => _navigateToCareerPath(context)),
+  //               Divider(height: 1, color: AppColors.border.withOpacity(0.5), indent: 56),
+  //               _buildListAction(context, '🎯', 'Interview Prep', 'Practice makes perfect', () => _navigateToCareerPath(context)),
+  //            ]
+  //         ),
+  //       )
+  //     ],
+  //   );
+  // }
 
-  Widget _buildQuickActionButton(
-    BuildContext context,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return MaterialButton(
-      onPressed: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: const BorderSide(color: AppColors.border),
+  Widget _buildListAction(BuildContext context, String emoji, String title,
+      String subtitle, VoidCallback onTap) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.bgDark,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(emoji, style: const TextStyle(fontSize: 20)),
       ),
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textDark,
-              fontWeight: FontWeight.w500,
-            ),
-      ),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.w700, color: AppColors.textDark)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(
+              color: AppColors.textLight,
+              fontSize: 13,
+              fontWeight: FontWeight.w500)),
+      trailing:
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textLight),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 
@@ -344,56 +342,56 @@ class DashboardScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFFEF3C7),
-            Color(0xFFFCD34D),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        color: const Color(0xFFEEF2FF), // Very soft Indigo
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color: const Color(0xFFFBBF24),
+          color: const Color(0xFFC7D2FE), // Light Indigo border
           width: 1,
         ),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: const Icon(
-                  Icons.lightbulb_rounded,
-                  color: Color(0xFFD97706),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Text(
-                'Pro Tips',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF92400E),
-                    ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: const Color(0xFF6366F1), // Indigo
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF6366F1).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4)),
+                ]),
+            child: const Icon(
+              Icons.wb_incandescent_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            '✓ Ask CampusGPT specific questions about your courses\n'
-            '✓ Build your career profile to track progress\n'
-            '✓ Check interview preparation resources',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF92400E),
-                  height: 1.6,
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pro Tip: Deep Dive',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF312E81),
+                      ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Upload your resume in the Career Path tool to get a highly customized roadmap for your future!',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF4338CA),
+                        height: 1.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -431,6 +429,7 @@ class DashboardScreen extends ConsumerWidget {
   void _showUserMenu(BuildContext outerContext, WidgetRef ref) {
     showModalBottomSheet(
       context: outerContext,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppRadius.xl),
@@ -451,12 +450,18 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             ListTile(
-              leading:
-                  const Icon(Icons.person_outline, color: AppColors.primary),
-              title: const Text('Profile'),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: AppColors.bgDark,
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.person_rounded,
+                    color: AppColors.primaryDark),
+              ),
+              title: const Text('Profile',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // Use outerContext for navigation, not sheetContext
                 Future.microtask(() {
                   if (outerContext.mounted) {
                     outerContext.push('/profile');
@@ -465,11 +470,18 @@ class DashboardScreen extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.history, color: AppColors.primary),
-              title: const Text('Chat History'),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: AppColors.bgDark,
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.history_rounded,
+                    color: AppColors.primaryDark),
+              ),
+              title: const Text('Chat History',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // Use outerContext for navigation, not sheetContext
                 Future.microtask(() {
                   if (outerContext.mounted) {
                     outerContext.push('/history');
@@ -477,50 +489,35 @@ class DashboardScreen extends ConsumerWidget {
                 });
               },
             ),
-            const Divider(),
+            const Divider(height: 32),
             ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.error),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.logout_rounded, color: AppColors.error),
+              ),
               title: const Text('Logout',
-                  style: TextStyle(color: AppColors.error)),
+                  style: TextStyle(
+                      color: AppColors.error, fontWeight: FontWeight.w600)),
               onTap: () async {
                 Navigator.pop(sheetContext);
 
-                // Use outerContext for all operations
                 if (outerContext.mounted) {
                   try {
-                    print('🔐 Starting logout process...');
-                    ScaffoldMessenger.of(outerContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Logging out...'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-
-                    // Perform logout
                     await ref.read(authStateProvider.notifier).logout();
-                    print('🔐 Logout complete, navigating to login...');
-
-                    // Wait before navigation
                     await Future.delayed(const Duration(milliseconds: 300));
-
-                    // Navigate using outerContext
                     if (outerContext.mounted) {
                       outerContext.go('/login');
                     }
                   } catch (e) {
                     print('❌ Logout error: $e');
-                    if (outerContext.mounted) {
-                      ScaffoldMessenger.of(outerContext).showSnackBar(
-                        SnackBar(
-                          content: Text('Logout error: ${e.toString()}'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
                   }
                 }
               },
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

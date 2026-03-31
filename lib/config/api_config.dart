@@ -20,13 +20,14 @@ class APIConfig {
   // - Look for "IPv4 Address" on your WiFi adapter
   // - Use that IP address above (e.g., 192.168.1.100)
 
-  static const String baseURL = 'http://10.255.176.62:8000/api';
+  static const String baseURL = 'http://10.198.204.62:8000/api';
 
   // ============================================================================
   // CONNECTION SETTINGS
   // ============================================================================
-  static const int connectionTimeout = 30000;
-  static const int receiveTimeout = 30000;
+  static const int connectionTimeout = 60000; // 60s for initial connection
+  static const int receiveTimeout =
+      120000; // 120s (2 min) for LLM processing + model loading
 
   // ============================================================================
   // SECRET KEYS FOR LOCAL STORAGE

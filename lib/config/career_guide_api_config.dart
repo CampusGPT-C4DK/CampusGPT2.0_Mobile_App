@@ -26,7 +26,7 @@ class CareerGuideAPIConfig {
   // - Use that IP address above (e.g., 192.168.1.100)
 
   static const String baseURL =
-      'http://10.255.176.62:5000'; // Base URL WITHOUT /api prefix
+      'https://career-guidance-30xj.onrender.com'; // Base URL WITHOUT /api prefix
 
   // ============================================================================
   // CONNECTION SETTINGS

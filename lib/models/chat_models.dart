@@ -19,7 +19,7 @@ class ChatResponse {
 
     // Extract answer
     final answer = json['answer'] ?? '';
-    print('✅ Answer extracted: ${answer.substring(0, 50)}...');
+    print('✅ Answer extracted: ${answer.length > 50 ? answer.substring(0, 50) : answer}...');
 
     // Extract sources - handle multiple possible formats
     List<Source> sources = [];

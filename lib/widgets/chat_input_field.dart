@@ -109,26 +109,6 @@ class _ChatInputFieldState extends State<ChatInputField>
                     ),
                     child: Row(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(left: AppSpacing.md),
-                          child: ScaleTransition(
-                            scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-                              CurvedAnimation(
-                                parent: _animationController,
-                                curve: Curves.elasticOut,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.attach_file,
-                              color: Color.lerp(
-                                AppColors.textLight,
-                                AppColors.primary,
-                                _iconAnimation.value,
-                              ),
-                              size: 20,
-                            ),
-                          ),
-                        ),
                         Expanded(
                           child: TextField(
                             controller: widget.controller,
