@@ -4,12 +4,21 @@ import 'package:go_router/go_router.dart';
 import '../config/app_colors.dart';
 import '../providers/providers.dart';
 import '../widgets/animated_appear.dart';
+import '../widgets/segmented_toggle_bar.dart';
+import '../widgets/student_routes_hub.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  int _tabIndex = 0; // 0 = Other, 1 = Assignments
+
+  @override
+  Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
@@ -71,32 +80,20 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
-                      // Two-Column Layout for Career Path and Chat
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildMainOption(
-                              context: context,
-                              title: 'AI Chat',
-                              description: 'Ask questions & learn',
-                              icon: Icons.forum_rounded,
-                              iconBg: AppColors.primary,
-                              onTap: () => context.push('/chat'),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.lg),
-                          Expanded(
-                            child: _buildMainOption(
-                              context: context,
-                              title: 'Career Path',
-                              description: 'Discover your future',
-                              icon: Icons.rocket_launch_rounded,
-                              iconBg: const Color(0xFF6366F1), // Indigo
-                              onTap: () => _navigateToCareerPath(context),
-                              hasBadge: true,
-                            ),
-                          ),
-                        ],
+                      SegmentedToggleBar(
+                        value: _tabIndex,
+                        items: const ['Other', 'Assignments'],
+                        onChanged: (next) => setState(() => _tabIndex = next),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: _tabIndex == 0
+                            ? _buildOtherTab(context)
+                            : const StudentRoutesHub(key: ValueKey('assign')),
                       ),
                     ],
                   ),
@@ -113,10 +110,11 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xxxl),
 
                 // Recent Activity or Tips
-                AnimatedAppear(
-                  delay: const Duration(milliseconds: 300),
-                  child: _buildTipsSection(context),
-                ),
+                if (_tabIndex == 0)
+                  AnimatedAppear(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildTipsSection(context),
+                  ),
 
                 const SizedBox(height: AppSpacing.xxxl),
               ],
@@ -161,6 +159,36 @@ class DashboardScreen extends ConsumerWidget {
                 color: AppColors.textMedium,
                 fontWeight: FontWeight.w500,
               ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtherTab(BuildContext context) {
+    return Row(
+      key: const ValueKey('other'),
+      children: [
+        Expanded(
+          child: _buildMainOption(
+            context: context,
+            title: 'AI Chat',
+            description: 'Ask questions & learn',
+            icon: Icons.forum_rounded,
+            iconBg: AppColors.primary,
+            onTap: () => context.push('/chat'),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(
+          child: _buildMainOption(
+            context: context,
+            title: 'Career Path',
+            description: 'Discover your future',
+            icon: Icons.rocket_launch_rounded,
+            iconBg: const Color(0xFF6366F1), // Indigo
+            onTap: () => _navigateToCareerPath(context),
+            hasBadge: true,
+          ),
         ),
       ],
     );
@@ -310,34 +338,6 @@ class DashboardScreen extends ConsumerWidget {
   //   );
   // }
 
-  Widget _buildListAction(BuildContext context, String emoji, String title,
-      String subtitle, VoidCallback onTap) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.bgDark,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(emoji, style: const TextStyle(fontSize: 20)),
-      ),
-      title: Text(title,
-          style: const TextStyle(
-              fontWeight: FontWeight.w700, color: AppColors.textDark)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(
-              color: AppColors.textLight,
-              fontSize: 13,
-              fontWeight: FontWeight.w500)),
-      trailing:
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textLight),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    );
-  }
-
   Widget _buildTipsSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -409,20 +409,6 @@ class DashboardScreen extends ConsumerWidget {
       }
     } catch (e) {
       print('❌ Navigation error to career-path: $e');
-    }
-  }
-
-  void _navigateToChat(BuildContext context) {
-    try {
-      if (context.mounted) {
-        Future.microtask(() {
-          if (context.mounted) {
-            context.push('/chat');
-          }
-        });
-      }
-    } catch (e) {
-      print('❌ Navigation error to chat: $e');
     }
   }
 

@@ -10,6 +10,15 @@ import 'screens/career_path_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/chat_history_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/student_assignments_screen.dart';
+import 'screens/student_submit_assignment_screen.dart';
+import 'screens/student_my_submissions_screen.dart';
+import 'screens/student_submission_detail_screen.dart';
+import 'screens/student_dashboard_api_screen.dart';
+import 'screens/student_performance_api_screen.dart';
+import 'screens/evaluation_result_entry_screen.dart';
+import 'screens/evaluation_result_view_screen.dart';
+import 'screens/student_pdf_viewer_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -81,6 +90,61 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+
+    // ==========================
+    // Student routes (TAE model)
+    // ==========================
+    GoRoute(
+      path: '/student/assignments',
+      builder: (context, state) => const StudentAssignmentsScreen(),
+    ),
+    GoRoute(
+      path: '/student/submit-assignment',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return StudentSubmitAssignmentScreen(
+          initialAssignmentId: extra?['assignment_id']?.toString(),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/student/pdf-view',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return StudentPdfViewerScreen(
+          url: extra?['url']?.toString() ?? '',
+          title: extra?['title']?.toString() ?? 'Assignment PDF',
+        );
+      },
+    ),
+    GoRoute(
+      path: '/student/my-submissions',
+      builder: (context, state) => const StudentMySubmissionsScreen(),
+    ),
+    GoRoute(
+      path: '/student/submission/:submissionId',
+      builder: (context, state) => StudentSubmissionDetailScreen(
+        submissionId: state.pathParameters['submissionId'] ?? '',
+      ),
+    ),
+    GoRoute(
+      path: '/dashboard/student-dashboard',
+      builder: (context, state) => const StudentDashboardApiScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/student-performance',
+      builder: (context, state) => const StudentPerformanceApiScreen(),
+    ),
+    GoRoute(
+      path: '/evaluation/results',
+      builder: (context, state) => const EvaluationResultEntryScreen(),
+    ),
+    GoRoute(
+      path: '/evaluation/results/view/:submissionId',
+      builder: (context, state) => EvaluationResultViewScreen(
+        submissionId: state.pathParameters['submissionId'] ?? '',
+      ),
     ),
   ],
 );

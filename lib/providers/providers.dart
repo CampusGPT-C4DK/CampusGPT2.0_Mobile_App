@@ -4,6 +4,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import '../services/career_guidance_service.dart';
+import '../services/student_service.dart';
 import '../models/user_model.dart';
 import '../models/career_guidance_model.dart';
 
@@ -30,6 +31,34 @@ final authServiceProvider = Provider<AuthService>((ref) {
 final chatServiceProvider = Provider<ChatService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return ChatService(apiClient: apiClient);
+});
+
+// Student Service Provider (TAE model student routes)
+final studentServiceProvider = Provider<StudentService>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return StudentService(apiClient: apiClient);
+});
+
+final studentAssignmentsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final service = ref.watch(studentServiceProvider);
+  return service.getAssignments();
+});
+
+final mySubmissionsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final service = ref.watch(studentServiceProvider);
+  return service.getMySubmissions();
+});
+
+final studentDashboardProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  final service = ref.watch(studentServiceProvider);
+  return service.getStudentDashboard();
+});
+
+final studentPerformanceProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  final service = ref.watch(studentServiceProvider);
+  return service.getStudentPerformance();
 });
 
 // Career Guidance Service Provider

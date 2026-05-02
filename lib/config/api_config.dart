@@ -20,7 +20,7 @@ class APIConfig {
   // - Look for "IPv4 Address" on your WiFi adapter
   // - Use that IP address above (e.g., 192.168.1.100)
 
-  static const String baseURL = 'http://10.198.204.62:8000/api';
+  static const String baseURL = 'http://10.117.8.62:8000/api';
 
   // ============================================================================
   // CONNECTION SETTINGS
